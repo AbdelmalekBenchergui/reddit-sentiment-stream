@@ -1,22 +1,24 @@
-version: '3'
-
 services:
   zookeeper:
-      image: confluentinc/cp-zookeeper:7.4.0
-      hostname: zookeeper
-      container_name: zookeeper
-      ports:
-        - "2181:2181"
-      environment:
-        ZOOKEEPER_CLIENT_PORT: 2181
-        ZOOKEEPER_TICK_TIME: 2000
-      healthcheck:
-        test: ['CMD', 'bash', '-c', "echo 'ruok' | nc localhost 2181"]
-        interval: 10s
-        timeout: 5s
-        retries: 5
-      networks:
-        - confluent
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_ADMIN_ENABLE_SERVER: "true"
+      ZOOKEEPER_4LW_COMMANDS_WHITELIST: "ruok,mntr,conf,stat"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo ruok | nc localhost 2181 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - confluent
+
+
+
 
   broker:
     image: confluentinc/cp-server:7.4.0
@@ -29,12 +31,17 @@ services:
       - "9092:9092"
       - "9101:9101"
     environment:
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_SASL_ENABLED_MECHANISMS: PLAINTEXT
-      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      KAFKA_CONFLUENT_TELEMETRY_ENABLED: "false"
 
     networks:
       - confluent
@@ -43,6 +50,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.4.0
@@ -55,6 +63,7 @@ services:
       - "8081:8081"
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:9092'
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
     networks:
@@ -81,8 +90,8 @@ services:
       CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
       CONTROL_CENTER_REPLICATION_FACTOR: 1
       CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
-      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
       CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
       CONFLUENT_METRICS_ENABLE: 'false'
       PORT: 9021
     networks:
@@ -98,7 +107,10 @@ services:
     command: webserver
     entrypoint: ['/opt/airflow/entrypoint.sh']
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
     environment:
       - LOAD_EX=n
       - EXECUTOR=Sequential
@@ -147,6 +159,11 @@ services:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     logging:
       options:
         max-size: 10m
