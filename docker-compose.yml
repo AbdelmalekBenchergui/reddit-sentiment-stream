@@ -129,6 +129,7 @@ services:
       - ./dags:/opt/airflow/dags
       - ./script/entrypoint.sh:/opt/airflow/entrypoint.sh   
       - ./requirements.txt:/opt/airflow/requirements.txt
+      - ./src:/opt/airflow/src    #Montage du dossier contenant mes scripts locaux
     ports:
       - "8080:8080"
     healthcheck:
@@ -148,6 +149,7 @@ services:
       - ./dags:/opt/airflow/dags
       - ./script/entrypoint.sh:/opt/airflow/entrypoint.sh   
       - ./requirements.txt:/opt/airflow/requirements.txt
+      - ./src:/opt/airflow/src    #Montage du dossier contenant mes scripts locaux
     environment:
       - LOAD_EX=n
       - EXECUTOR=Sequential
