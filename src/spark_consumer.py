@@ -22,7 +22,7 @@ nltk.download('vader_lexicon')
 #  Logging 
 logging.basicConfig(level=logging.INFO)
 
-# ----------------- Spark -----------------
+# Spark
 def create_spark_connection():
     try:
         spark = SparkSession.builder \
@@ -66,7 +66,7 @@ def create_selection_df_from_kafka(df):
              .select(from_json(col("json"), schema).alias("data")) \
              .select("data.*")
 
-# ----------------- Text cleaning -----------------
+# Text cleaning 
 def clean_text(text):
     if not text:
         return ""
@@ -80,7 +80,7 @@ def clean_text(text):
 
 clean_udf = udf(clean_text, StringType())
 
-# ----------------- Sentiment Analysis -----------------
+#Sentiment Analysis 
 analyzer = SentimentIntensityAnalyzer()
 
 def vader_sentiment(text):
@@ -95,10 +95,10 @@ def vader_sentiment(text):
 
 sentiment_udf = udf(vader_sentiment, StringType())
 
-# ----------------- UUID -----------------
+#UUID 
 uuid_udf = udf(lambda: str(uuid.uuid4()), StringType())
 
-# ----------------- Cassandra -----------------
+#  Cassandra 
 def create_cassandra_connection():
     try:
         cluster = Cluster(['127.0.0.1'])
@@ -124,7 +124,7 @@ def create_keyspace_and_table(session):
     """)
     logging.info("Keyspace and table created successfully!")
 
-# ----------------- Main pipeline -----------------
+# Main pipeline 
 def main():
     # Cassandra setup
     session = create_cassandra_connection()
